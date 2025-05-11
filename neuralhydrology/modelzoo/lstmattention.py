@@ -12,7 +12,7 @@ from neuralhydrology.modelzoo.inputlayer import InputLayer
 class LSTMAttention(BaseModel):
 
     # specify submodules of the model that can later be used for finetuning. Names must match class attributes
-    module_parts = ['embedding_net', 'lstm', 'head']
+    module_parts = ['embedding_net', 'lstm', 'attention_W', 'attention_v', 'head']
 
     def __init__(self, cfg: Config):
 
@@ -21,10 +21,16 @@ class LSTMAttention(BaseModel):
         # retrieve the input layer
         self.embedding_net = InputLayer(cfg)
 
-        # create the actual GRU
+        # create the actual LSTM
         self.lstm = nn.LSTM(input_size=self.embedding_net.output_size, hidden_size=cfg.hidden_size)
 
-        # add dropout between GRU and head
+        # linear layer to transform the hidden states from the LSTM output
+        self.attention_W = nn.Linear(cfg.hidden_size, cfg.hidden_size)
+
+        # linear layer to produce a scalar score for each hidden state
+        self.attention_v = nn.Linear(cfg.hidden_size, 1)
+
+        # add dropout between LSTM and head
         self.dropout = nn.Dropout(p=cfg.output_dropout)
 
         # retrieve the model head
@@ -47,6 +53,29 @@ class LSTMAttention(BaseModel):
         # run the actual LSTM
         lstm_output, (h_n, c_n) = self.lstm(input=x_d)
 
+        # Apply the first linear layer
+        attention_energies = self.attention_W(lstm_output)
+
+        # Apply non-linearity
+        attention_energies = torch.tanh(attention_energies)
+
+        # Apply second linear layer to get scores
+        attention_scores_raw = self.attention_v(attention_energies)
+
+        # Apply softmax across the sequence dimension (dim=0)
+        attention_weights = torch.softmax(attention_scores_raw, dim=0)
+
+        # transpose lstm_output to [batch_size, sequence_length, hidden_size]
+        lstm_output_transposed = lstm_output.transpose(0, 1)
+
+        # squeeze the last dimension of attention_weights, then transpose again
+        attention_weights = attention_weights.squeeze(2).transpose(0, 1)
+        # add new dimension at position 1
+        attention_weights = attention_weights.unsqueeze(1)
+
+        # matrix multiplication
+        context_vector = torch.bmm(attention_weights, lstm_output_transposed)
+
         # reshape to [batch_size, 1, n_hiddens]
         h_n = h_n.transpose(0, 1)
         c_n = c_n.transpose(0, 1)
@@ -56,7 +85,7 @@ class LSTMAttention(BaseModel):
         
         # add the final output as it's returned by the head to the prediction dict
         # (this will contain the 'y_hat')
-        pred.update(self.head(self.dropout(lstm_output.transpose(0, 1))))
+        pred.update(self.head(self.dropout(context_vector)))
 
         return pred
 

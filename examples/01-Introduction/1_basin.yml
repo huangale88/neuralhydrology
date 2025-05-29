@@ -17,7 +17,7 @@ test_start_date: "01/10/1989"
 test_end_date: "30/09/1999"
 
 # which GPU (id) to use [in format of cuda:0, cuda:1 etc, or cpu, mps or None]
-device: cpu
+device: cuda:0
 
 # --- Validation configuration ---------------------------------------------------------------------
 
@@ -37,7 +37,7 @@ metrics:
 
 # base model type [lstm, ealstm, cudalstm, embcudalstm, mtslstm]
 # (has to match the if statement in modelzoo/__init__.py)
-model: lstmattention
+model: cudalstm
 
 # prediction head [regression]. Define the head specific parameters below
 head: regression

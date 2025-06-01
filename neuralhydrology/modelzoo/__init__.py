@@ -19,6 +19,7 @@ from neuralhydrology.modelzoo.sequential_forecast_lstm import SequentialForecast
 from neuralhydrology.modelzoo.stacked_forecast_lstm import StackedForecastLSTM
 from neuralhydrology.modelzoo.transformer import Transformer
 from .lstmattention import LSTMAttention
+from .mflstm import MFLSTM
 from neuralhydrology.utils.config import Config
 
 SINGLE_FREQ_MODELS = [
@@ -101,6 +102,8 @@ def get_model(cfg: Config) -> nn.Module:
         model = HybridModel(cfg=cfg)
     elif cfg.model.lower() == "lstmattention":
         model = LSTMAttention(cfg=cfg) 
+    elif cfg.model.lower() == "mflstm":
+        model = MFLSTM(cfg=cfg)
     else:
         raise NotImplementedError(f"{cfg.model} not implemented or not linked in `get_model()`")
 

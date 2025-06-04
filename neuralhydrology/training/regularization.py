@@ -100,15 +100,42 @@ class TiedFrequencyMSERegularization(BaseRegularization):
         """
 
         loss = 0
+        
+        # Access the full model outputs from args[0]
+        # This dictionary contains y_hat_1D, y_hat_1h for the *entire sequence*
+        if args:
+            full_model_outputs = args[0]
+        else:
+            # Fallback or raise an error if full_model_outputs is expected but not provided
+            # This might happen if BaseLoss doesn't pass it or if the setup is incorrect.
+            # In a typical NeuralHydrology setup, args[0] should be present.
+            raise RuntimeError("Full model outputs not found in *args. TiedFrequencyMSERegularization requires it.")
+
+
         for idx, freq in enumerate(self._frequencies):
             if idx == 0:
                 continue
+            
             frequency_factor = int(get_frequency_factor(self._frequencies[idx - 1], freq))
-            freq_pred = prediction[f'y_hat_{freq}']
-            mean_freq_pred = freq_pred.view(freq_pred.shape[0], freq_pred.shape[1] // frequency_factor,
-                                            frequency_factor, -1).mean(dim=2)
-            lower_freq_pred = prediction[f'y_hat_{self._frequencies[idx - 1]}'][:, -mean_freq_pred.shape[1]:]
-            loss = loss + torch.mean((lower_freq_pred - mean_freq_pred)**2)
+            
+            # Use full_model_outputs for the high-frequency prediction
+            high_res_y_hat = full_model_outputs[f'y_hat_{freq}']
+            
+            # Aggregate the high-resolution prediction to the lower frequency
+            # Ensure the reshaping logic aligns with your data dimensions (batch, sequence_length, features)
+            mean_high_res_y_hat = high_res_y_hat.view(high_res_y_hat.shape[0], 
+                                                        high_res_y_hat.shape[1] // frequency_factor,
+                                                        frequency_factor, -1).mean(dim=2)
+            
+            # Use full_model_outputs for the lower-frequency prediction
+            low_res_y_hat = full_model_outputs[f'y_hat_{self._frequencies[idx - 1]}']
+            
+            # Take the last relevant timesteps for comparison
+            # Ensure slicing is correct based on the aggregated shape
+            lower_freq_pred_cropped = low_res_y_hat[:, -mean_high_res_y_hat.shape[1]:]
+            
+            # Calculate the mean squared error
+            loss = loss + torch.mean((lower_freq_pred_cropped - mean_high_res_y_hat)**2)
 
         return loss
 

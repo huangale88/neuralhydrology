@@ -42,7 +42,7 @@ metrics:
 
 # base model type [lstm, ealstm, cudalstm, embcudalstm, mtslstm]
 # (has to match the if statement in modelzoo/__init__.py)
-model: mtslstm
+model: mtslstmcmal
 
 # select whether to use the MTS-LSTM or sMTS-LSTM
 shared_mtslstm: False
@@ -84,6 +84,10 @@ optimizer: Adam
 
 # specify loss [MSE, NSE, RMSE]
 loss: CMALLoss
+
+# specify regularization
+regularization:
+  - tie_frequencies
 
 # specify learning rates to use starting at specific epochs (0 is the initial learning rate)
 learning_rate:

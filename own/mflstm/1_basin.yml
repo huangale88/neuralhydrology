@@ -1,0 +1,184 @@
+# --- Experiment configurations --------------------------------------------------------------------
+
+# experiment name, used as folder name
+experiment_name: MFLSTM_hourly_us
+
+# input and output frequencies.
+# IMPORTANT: The order here (1D then 1h) determines the concatenation order in your MFLSTM's forward pass.
+# This aligns with the common practice of processing lower frequencies first in multi-frequency models
+# and matches the likely processing order of your original MFLSTM's `custom_freq_processing`.
+use_frequencies:
+  - 1D
+  - 1h
+
+# files to specify training, validation and test basins
+train_basin_file: 1_basin.txt
+validation_basin_file: 1_basin.txt
+test_basin_file: 1_basin.txt
+
+# training, validation and test time periods
+# Time information removed from date strings to match neuralhydrology's expected format (DD/MM/YYYY)
+train_start_date: "01/10/1990"
+train_end_date: "30/09/2003"
+validation_start_date: "01/10/2003"
+validation_end_date: "30/09/2008"
+test_start_date: "01/10/2008"
+test_end_date: "30/09/2018"
+
+# which GPU (id) to use [in format of cuda:0, cuda:1 etc, or cpu, mps or None]
+device: cpu
+
+# Set global random seed
+seed: 110
+
+# Activate dev_mode to allow unrecognized configuration keys.
+# This is useful when using custom models that might have their own specific parameters.
+dev_mode: True
+
+# --- Validation configuration ---------------------------------------------------------------------
+
+# specify after how many epochs to perform validation
+validate_every: 4
+
+# specify how many random basins to use for validation (-1 means validate on all basins)
+validate_n_random_basins: -1
+
+# specify which metrics to calculate during validation
+metrics:
+  - NSE
+
+# --- Model configuration --------------------------------------------------------------------------
+
+# base model type (this points to your custom MFLSTM class)
+model: mflstm
+
+# prediction head
+head: regression
+output_activation: linear
+
+# Number of cell states of the LSTM
+hidden_size: 128
+
+# Initial bias value of the forget gate
+initial_forget_bias: 3
+
+# Dropout applied to the output of the LSTM
+output_dropout: 0.4
+
+# Removed MFLSTM-specific parameters for dynamic input embeddings
+# dynamic_embeddings: True
+# dynamic_input_size_embedding:
+#   1D: 5
+#   1h: 16
+# n_channels_dynamic_embedding: 64
+
+# Removed n_layers as it's not in the provided documentation
+# n_layers: 1
+
+# --- Training configuration -----------------------------------------------------------------------
+
+# specify optimizer
+optimizer: Adam
+
+# specify loss
+loss: MSE
+
+# specify learning rates to use starting at specific epochs
+learning_rate:
+  0: 5e-4
+  10: 1e-4
+  25: 1e-5
+
+# Mini-batch size
+batch_size: 256
+
+# Batch size for evaluation
+batch_size_evaluation: 1024
+
+# Number of training epochs
+epochs: 30
+
+# If a value, clips the gradients during training to that norm.
+clip_gradient_norm: 1
+
+# Defines which time steps are used to calculate the loss. Can't be larger than seq_length.
+# This must be a dictionary with one key per frequency, even if only one frequency is used for targets.
+predict_last_n:
+  1D: 1  # Placeholder for daily frequency, as the dataset expects a value.
+  1h: 24 # Predict the last 24 hours for the '1h' target.
+
+# Length of the input sequence per frequency.
+# Your MFLSTM internally concatenates these for the total sequence length.
+seq_length:
+  1D: 365
+  1h: 8760 # (365 * 24)
+
+# Number of parallel workers used in the data pipeline
+num_workers: 8
+
+# Log the training loss every n steps
+log_interval: 5
+
+# If true, writes logging results into tensorboard file
+log_tensorboard: False
+
+# If a value and greater than 0, logs n random basins as figures during validation
+log_n_figures: 0
+
+# Save model weights every n epochs
+save_weights_every: 1
+
+# Store the results of the validation to disk
+save_validation_results: True
+
+# --- Data configurations --------------------------------------------------------------------------
+
+# which data set to use
+dataset: hourly_camels_us
+
+# Path to data set root
+data_dir: ../../data/CAMELS_US
+
+# Forcing products used in the dataset.
+# Ensure these align with the dynamic inputs you specify below.
+forcings:
+  - nldas_hourly
+  - daymet
+
+# Dynamic input variables by frequency.
+# Ensure these lists contain the exact feature names as they appear in your dataset.
+dynamic_inputs:
+  1D:
+    # Daymet daily forcings for 1D input stream
+    - prcp(mm/day)_daymet
+    - srad(W/m2)_daymet
+    - tmax(C)_daymet
+    - tmin(C)_daymet
+    - vp(Pa)_daymet
+  1h:
+    # NLDAS hourly forcings
+    - convective_fraction_nldas_hourly
+    - longwave_radiation_nldas_hourly
+    - potential_energy_nldas_hourly
+    - potential_evaporation_nldas_hourly
+    - pressure_nldas_hourly
+    - shortwave_radiation_nldas_hourly
+    - specific_humidity_nldas_hourly
+    - temperature_nldas_hourly
+    - total_precipitation_nldas_hourly
+    - wind_u_nldas_hourly
+    - wind_v_nldas_hourly
+    # Including Daymet daily forcings at 1h. These values will be repeated for each hour within a day.
+    - prcp(mm/day)_daymet
+    - srad(W/m2)_daymet
+    - tmax(C)_daymet
+    - tmin(C)_daymet
+    - vp(Pa)_daymet
+
+# which columns to use as target
+target_variables:
+  - QObs(mm/h)
+
+# clip negative predictions to zero for all variables listed below.
+clip_targets_to_zero:
+  - QObs(mm/h)

@@ -239,16 +239,8 @@ class MTSLSTMCMAL(BaseModel):
             # Store outputs from the head (mu, b, tau, pi)
             outputs.update({f'{key}_{freq}': value for key, value in head_out.items()})
 
-            # --- START DEBUGGING LINES ---
-            print(f"DEBUG: Processing frequency: {freq}")
-            print(f"DEBUG: Head object for '{freq}': {self.heads[freq]}")
-            if hasattr(self.heads[freq], '__class__'):
-                print(f"DEBUG: Class name of head for '{freq}': {self.heads[freq].__class__.__name__}")
-            # --- END DEBUGGING LINES ---
-
             # Calculate the mean if it is a CMAL head and add it as 'y_hat'
             if isinstance(self.heads[freq], nn.Module) and self.heads[freq].__class__.__name__ == 'CMAL':
-                print(f"DEBUG_CMAL_MEAN_EXECUTION: Calculating CMAL mean for frequency {freq}")
                 mean_prediction = self._calculate_cmal_mean( 
                     head_out['mu'], head_out['b'], head_out['tau'], head_out['pi']
                 )

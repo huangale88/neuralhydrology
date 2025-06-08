@@ -10,6 +10,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+import torch.optim.lr_scheduler as lr_scheduler
 
 import neuralhydrology.training.loss as loss
 from neuralhydrology.datasetzoo import get_dataset
@@ -164,6 +165,18 @@ class BaseTrainer(object):
             self._freeze_model_parts()
 
         self.optimizer = self._get_optimizer()
+
+        # Initialize the ReduceLROnPlateau scheduler
+        # Adjust parameters (mode, factor, patience, min_lr) 
+        self.scheduler = lr_scheduler.ReduceLROnPlateau(
+            self.optimizer,
+            mode='min',      # Use 'max' for metrics you want to maximize (like NSE), 'min' for losses
+            factor=0.5,      # Reduce LR by 50%
+            patience=3,     # Number of validation epochs to wait without improvement before reducing LR
+            min_lr=1e-7,     # Minimum learning rate to allow
+            verbose=True     # Print messages when LR is updated
+        )
+
         self.loss_obj = self._get_loss_obj().to(self.device)
 
         # Add possible regularization terms to the loss function.
@@ -206,10 +219,12 @@ class BaseTrainer(object):
         ``validate_every`` epochs. Model and optimizer state are saved after every ``save_weights_every`` epochs.
         """
         for epoch in range(self._epoch + 1, self._epoch + self.cfg.epochs + 1):
+            '''
             if epoch in self.cfg.learning_rate.keys():
                 LOGGER.info(f"Setting learning rate to {self.cfg.learning_rate[epoch]}")
                 for param_group in self.optimizer.param_groups:
                     param_group["lr"] = self.cfg.learning_rate[epoch]
+            '''
 
             self._train_epoch(epoch=epoch)
             avg_losses = self.experiment_logger.summarise()
@@ -228,6 +243,15 @@ class BaseTrainer(object):
                                         experiment_logger=self.experiment_logger.valid())
 
                 valid_metrics = self.experiment_logger.summarise()
+
+                # Example: If your main metric is NSE, and it's stored under 'median_NSE' in valid_metrics:
+                # monitored_metric = valid_metrics['median_NSE'] 
+                
+                # If you prefer to monitor the validation loss:
+                monitored_metric = valid_metrics['avg_total_loss'] # <--- CHOOSE YOUR MONITORED METRIC
+
+                self.scheduler.step(monitored_metric)
+
                 print_msg = f"Epoch {epoch} average validation loss: {valid_metrics['avg_total_loss']:.5f}"
                 if self.cfg.metrics:
                     print_msg += f" -- Median validation metrics: "

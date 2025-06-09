@@ -91,7 +91,7 @@ regularization:
 
 # specify learning rates to use starting at specific epochs (0 is the initial learning rate)
 learning_rate:
-  0: 1e-3
+  0: 1e-4
 
 # Mini-batch size
 batch_size: 256

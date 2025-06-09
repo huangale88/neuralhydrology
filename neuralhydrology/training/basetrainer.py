@@ -172,10 +172,21 @@ class BaseTrainer(object):
             self.optimizer,
             mode='min',      # Use 'max' for metrics you want to maximize (like NSE), 'min' for losses
             factor=0.5,      # Reduce LR by 50%
-            patience=3,     # Number of validation epochs to wait without improvement before reducing LR
+            patience=2,     # Number of validation epochs to wait without improvement before reducing LR
             min_lr=1e-7,     # Minimum learning rate to allow
-            verbose=True     # Print messages when LR is updated
         )
+        
+        # 1. ADDED: Log initial scheduler parameters 
+        if isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau): 
+            LOGGER.info(f"--- Scheduler Initialized ---") 
+            LOGGER.info(f"Scheduler patience: {self.scheduler.patience}") 
+            LOGGER.info(f"Scheduler mode: {self.scheduler.mode}") 
+            LOGGER.info(f"Scheduler factor: {self.scheduler.factor}") 
+            LOGGER.info(f"Scheduler min_lr: {self.scheduler.min_lrs}")
+            LOGGER.info(f"Scheduler threshold_mode: {self.scheduler.threshold_mode}") 
+            LOGGER.info(f"Scheduler threshold: {self.scheduler.threshold}") 
+            LOGGER.info(f"Scheduler cooldown: {self.scheduler.cooldown}") 
+            LOGGER.info(f"-----------------------------")
 
         self.loss_obj = self._get_loss_obj().to(self.device)
 
@@ -251,6 +262,15 @@ class BaseTrainer(object):
                 monitored_metric = valid_metrics['avg_total_loss'] # <--- CHOOSE YOUR MONITORED METRIC
 
                 self.scheduler.step(monitored_metric)
+                current_lr = self.optimizer.param_groups[0]['lr']
+                LOGGER.info(f"Current Learning Rate: {current_lr}")
+                
+                # 2. ADDED: Log scheduler state after each step 
+                if isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau): 
+                    LOGGER.info(f"Scheduler state after step - best: {self.scheduler.best:.6f}") 
+                    LOGGER.info(f"Scheduler state after step - num_bad_epochs: {self.scheduler.num_bad_epochs}") 
+                    LOGGER.info(f"Scheduler state after step - last_epoch: {self.scheduler.last_epoch}") 
+                    LOGGER.info(f"") 
 
                 print_msg = f"Epoch {epoch} average validation loss: {valid_metrics['avg_total_loss']:.5f}"
                 if self.cfg.metrics:

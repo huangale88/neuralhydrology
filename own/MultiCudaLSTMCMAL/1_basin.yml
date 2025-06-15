@@ -125,13 +125,22 @@ forcings:
   - daymet
 
 dynamic_inputs:
-  - PRCP(mm/day)_nldas
-  - PRCP(mm/day)_maurer
-  - prcp(mm/day)_daymet
-  - srad(W/m2)_daymet
-  - tmax(C)_daymet
-  - tmin(C)_daymet
-  - vp(Pa)_daymet
+    - convective_fraction_nldas_hourly
+    - longwave_radiation_nldas_hourly
+    - potential_energy_nldas_hourly
+    - potential_evaporation_nldas_hourly
+    - pressure_nldas_hourly
+    - shortwave_radiation_nldas_hourly
+    - specific_humidity_nldas_hourly
+    - temperature_nldas_hourly
+    - total_precipitation_nldas_hourly
+    - wind_u_nldas_hourly
+    - wind_v_nldas_hourly
+    - prcp(mm/day)_daymet
+    - srad(W/m2)_daymet
+    - tmax(C)_daymet
+    - tmin(C)_daymet
+    - vp(Pa)_daymet
 
 # which columns to use as target
 target_variables:

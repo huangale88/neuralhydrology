@@ -86,11 +86,11 @@ clip_gradient_norm: 1
 
 # Defines which time steps are used to calculate the loss. Can't be larger than seq_length.
 # If use_frequencies is used, this needs to be a dict mapping each frequency to a predict_last_n-value, else an int.
-predict_last_n: 24
+predict_last_n: 1
 
 # Length of the input sequence
 # If use_frequencies is used, this needs to be a dict mapping each frequency to a seq_length, else an int.
-seq_length: 336
+seq_length: 365
 
 # Number of parallel workers used in the data pipeline
 num_workers: 8
@@ -113,7 +113,7 @@ save_validation_results: True
 # --- Data configurations --------------------------------------------------------------------------
 
 # which data set to use [camels_us, camels_gb, global, hourly_camels_us]
-dataset: hourly_camels_us
+dataset: camels_us
 
 # Path to data set root
 data_dir: ../../data/CAMELS_US
@@ -121,26 +121,14 @@ data_dir: ../../data/CAMELS_US
 # Forcing product [daymet, maurer, maurer_extended, nldas, nldas_extended, nldas_hourly]
 # can be either a list of forcings or a single forcing product
 forcings:
-  - nldas_hourly
   - daymet
 
 dynamic_inputs:
-    - convective_fraction_nldas_hourly
-    - longwave_radiation_nldas_hourly
-    - potential_energy_nldas_hourly
-    - potential_evaporation_nldas_hourly
-    - pressure_nldas_hourly
-    - shortwave_radiation_nldas_hourly
-    - specific_humidity_nldas_hourly
-    - temperature_nldas_hourly
-    - total_precipitation_nldas_hourly
-    - wind_u_nldas_hourly
-    - wind_v_nldas_hourly
-    - prcp(mm/day)_daymet
-    - srad(W/m2)_daymet
-    - tmax(C)_daymet
-    - tmin(C)_daymet
-    - vp(Pa)_daymet
+  - prcp(mm/day)
+  - srad(W/m2)
+  - tmax(C)
+  - tmin(C)
+  - vp(Pa)
 
 # which columns to use as target
 target_variables:

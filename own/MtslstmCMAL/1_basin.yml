@@ -61,7 +61,7 @@ n_distributions: 5 # The number of asymmetric Laplace distributions to mix [cite
 n_samples: 100 # Number of samples generated from CMAL per time-step during inference [cite: 53]
 negative_sample_handling: clip # Approach for handling negative samples [cite: 54]
 # negative_sample_max_retries: 5 # Only relevant if negative_sample_handling is 'truncate' [cite: 56]
-mc_dropout: False 
+mc_dropout: True 
 
 # ----> Regression settings <----
 output_activation: linear
@@ -91,7 +91,9 @@ regularization:
 
 # specify learning rates to use starting at specific epochs (0 is the initial learning rate)
 learning_rate:
-  0: 5e-5
+  0: 1e-3
+  5: 1e-4
+  10: 5e-5
 
 # Mini-batch size
 batch_size: 256
@@ -121,7 +123,7 @@ num_workers: 8
 log_interval: 5
 
 # If true, writes logging results into tensorboard file
-log_tensorboard: False
+log_tensorboard: True
 
 # If a value and greater than 0, logs n random basins as figures during validation
 log_n_figures: 0

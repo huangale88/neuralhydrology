@@ -20,4 +20,4 @@ epochs: 50
 finetune_modules:
 - heads
 - lstm
-base_run_dir: c:\Project Files\Alex\neuralhydrology\own\MtslstmCMAL\runs\test_run_0906_184435
+base_run_dir: c:\Project Files\Alex\neuralhydrology\own\MtslstmCMAL\runs\test_run_2406_043601

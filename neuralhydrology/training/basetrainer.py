@@ -230,12 +230,29 @@ class BaseTrainer(object):
         ``validate_every`` epochs. Model and optimizer state are saved after every ``save_weights_every`` epochs.
         """
         for epoch in range(self._epoch + 1, self._epoch + self.cfg.epochs + 1):
-            '''
+            # Flag to check if LR was overridden by config this epoch
+            lr_overridden_this_epoch = False
+
+            # ADD THIS LOGGING STATEMENT
+            LOGGER.info(f"--- Epoch {epoch} starts ---")
+            LOGGER.info(f"Learning rate keys in config: {list(self.cfg.learning_rate.keys())}")
+
+
             if epoch in self.cfg.learning_rate.keys():
-                LOGGER.info(f"Setting learning rate to {self.cfg.learning_rate[epoch]}")
+                new_lr = self.cfg.learning_rate[epoch]
+                LOGGER.info(f"Setting learning rate to {new_lr} as specified in config for epoch {epoch}")
                 for param_group in self.optimizer.param_groups:
-                    param_group["lr"] = self.cfg.learning_rate[epoch]
-            '''
+                    param_group["lr"] = new_lr
+                lr_overridden_this_epoch = True # Set flag to True
+            # ADD THIS ELSE BLOCK
+            else:
+                LOGGER.info(f"Epoch {epoch} not found in config.learning_rate.keys(). LR will be handled by scheduler if applicable.")
+                
+            # ADD THIS NEW, UNCONDITIONAL LOGGING STATEMENT HERE
+            LOGGER.info(f"DEBUG: Reached scheduler check for epoch {epoch}. lr_overridden_this_epoch is {lr_overridden_this_epoch}")
+
+            # ADD THIS LOGGING STATEMENT (from previous instructions, ensure it's still there)
+            LOGGER.info(f"Before scheduler step: lr_overridden_this_epoch = {lr_overridden_this_epoch}")
 
             self._train_epoch(epoch=epoch)
             avg_losses = self.experiment_logger.summarise()
@@ -247,30 +264,42 @@ class BaseTrainer(object):
 
             if (self.validator is not None) and (epoch % self.cfg.validate_every == 0):
                 self.validator.evaluate(epoch=epoch,
-                                        save_results=self.cfg.save_validation_results,
-                                        save_all_output=self.cfg.save_all_output,
-                                        metrics=self.cfg.metrics,
-                                        model=self.model,
-                                        experiment_logger=self.experiment_logger.valid())
+                                         save_results=self.cfg.save_validation_results,
+                                         save_all_output=self.cfg.save_all_output,
+                                         metrics=self.cfg.metrics,
+                                         model=self.model,
+                                         experiment_logger=self.experiment_logger.valid())
 
                 valid_metrics = self.experiment_logger.summarise()
 
-                # Example: If your main metric is NSE, and it's stored under 'median_NSE' in valid_metrics:
-                # monitored_metric = valid_metrics['median_NSE'] 
-                
                 # If you prefer to monitor the validation loss:
-                monitored_metric = valid_metrics['avg_total_loss'] # <--- CHOOSE YOUR MONITORED METRIC
+                monitored_metric = valid_metrics['avg_total_loss'] # Choose monitored metric
 
-                self.scheduler.step(monitored_metric)
+                # ADD THIS LOGGING STATEMENT
+                LOGGER.info(f"Before scheduler step: lr_overridden_this_epoch = {lr_overridden_this_epoch}")
+
+                # Only step the scheduler if the learning rate wasn't overridden by config this epoch
+                if not lr_overridden_this_epoch:
+                    self.scheduler.step(monitored_metric)
+                    # ADD THIS LOGGING STATEMENT
+                    LOGGER.info(f"ReduceLROnPlateau stepped for epoch {epoch}.")
+                else:
+                    LOGGER.info(f"Skipping ReduceLROnPlateau step for epoch {epoch} because LR was overridden by config.")
+                    
+                # ADD THIS LOGGING STATEMENT (from previous instructions, ensure it's still there)
+                LOGGER.info(f"Scheduler state after step - best: {self.scheduler.best}")
+                LOGGER.info(f"Scheduler state after step - num_bad_epochs: {self.scheduler.num_bad_epochs}")
+                LOGGER.info(f"Current Learning Rate: {self.optimizer.param_groups[0]['lr']}")
+
                 current_lr = self.optimizer.param_groups[0]['lr']
                 LOGGER.info(f"Current Learning Rate: {current_lr}")
-                
-                # 2. ADDED: Log scheduler state after each step 
-                if isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau): 
-                    LOGGER.info(f"Scheduler state after step - best: {self.scheduler.best:.6f}") 
-                    LOGGER.info(f"Scheduler state after step - num_bad_epochs: {self.scheduler.num_bad_epochs}") 
-                    LOGGER.info(f"Scheduler state after step - last_epoch: {self.scheduler.last_epoch}") 
-                    LOGGER.info(f"") 
+
+                # 2. ADDED: Log scheduler state after each step
+                if isinstance(self.scheduler, lr_scheduler.ReduceLROnPlateau):
+                    LOGGER.info(f"Scheduler state after step - best: {self.scheduler.best:.6f}")
+                    LOGGER.info(f"Scheduler state after step - num_bad_epochs: {self.scheduler.num_bad_epochs}")
+                    LOGGER.info(f"Scheduler state after step - last_epoch: {self.scheduler.last_epoch}")
+                    LOGGER.info(f"")
 
                 print_msg = f"Epoch {epoch} average validation loss: {valid_metrics['avg_total_loss']:.5f}"
                 if self.cfg.metrics:

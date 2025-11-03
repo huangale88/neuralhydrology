@@ -61,7 +61,7 @@ n_distributions: 5 # The number of asymmetric Laplace distributions to mix [cite
 n_samples: 100 # Number of samples generated from CMAL per time-step during inference [cite: 53]
 negative_sample_handling: clip # Approach for handling negative samples [cite: 54]
 # negative_sample_max_retries: 5 # Only relevant if negative_sample_handling is 'truncate' [cite: 56]
-mc_dropout: True 
+mc_dropout: False
 
 # ----> Regression settings <----
 output_activation: linear
@@ -99,7 +99,7 @@ learning_rate:
 batch_size: 256
 
 # Number of training epochs
-epochs: 50
+epochs: 20
 
 # If a value, clips the gradients during training to that norm.
 clip_gradient_norm: 1

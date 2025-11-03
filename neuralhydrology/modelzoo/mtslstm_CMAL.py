@@ -49,6 +49,7 @@ class MTSLSTMCMAL(BaseModel):
 
     def __init__(self, cfg: Config):
         super(MTSLSTMCMAL, self).__init__(cfg=cfg)
+        self.is_sampling = False 
         self.lstms = None
         self.transfer_fcs = None
         self.heads = None
@@ -239,11 +240,14 @@ class MTSLSTMCMAL(BaseModel):
             # Store outputs from the head (mu, b, tau, pi)
             outputs.update({f'{key}_{freq}': value for key, value in head_out.items()})
 
-            # Calculate the mean if it is a CMAL head and add it as 'y_hat'
-            if isinstance(self.heads[freq], nn.Module) and self.heads[freq].__class__.__name__ == 'CMAL':
-                mean_prediction = self._calculate_cmal_mean( 
-                    head_out['mu'], head_out['b'], head_out['tau'], head_out['pi']
-                )
-                outputs[f'y_hat_{freq}'] = mean_prediction
+            # Only calculate the mean 'y_hat' if we are NOT in the process of sampling.
+            # This provides the 'y_hat' for training and loss calculation during validation,
+            # but allows the raw parameters to pass through during the sampling step.
+            if not self.is_sampling:
+                if isinstance(self.heads[freq], nn.Module) and self.heads[freq].__class__.__name__ == 'CMAL':
+                    mean_prediction = self._calculate_cmal_mean( 
+                        head_out['mu'], head_out['b'], head_out['tau'], head_out['pi']
+                    )
+                    outputs[f'y_hat_{freq}'] = mean_prediction
 
         return outputs

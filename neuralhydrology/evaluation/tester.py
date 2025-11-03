@@ -531,6 +531,7 @@ class RegressionTester(BaseTester):
         return y_hat_sub, y_sub
 
     def _create_xarray_data_vars(self, y_hat: np.ndarray, y: np.ndarray):
+        print("DEBUG: Creating data variables using REGRESSION logic.")
         data = {}
         for i, var in enumerate(self.cfg.target_variables):
             data[f"{var}_obs"] = (('date', 'time_step'), y[:, :, i])
@@ -562,10 +563,30 @@ class UncertaintyTester(BaseTester):
         super(UncertaintyTester, self).__init__(cfg, run_dir, period, init_model)
 
     def _get_predictions_and_loss(self, model: BaseModel, data: Dict[str, torch.Tensor]) -> Tuple[torch.Tensor, float]:
+        # --- THIS IS THE CORRECTED AND FINAL VERSION ---
+        
+        # Add a flag to the model to signal that we are calculating loss, not sampling.
+        # This tells the model's forward pass to generate the 'y_hat' needed for regularization.
+        model.is_sampling = False 
+        
+        # The forward pass is called internally by the loss object
         outputs = model(data)
         _, all_losses = self.loss_obj(outputs, data)
+        
+        # Now, signal that we are about to sample.
+        # This tells the model's forward pass NOT to generate 'y_hat'.
+        model.is_sampling = True
+        
+        # The .sample() method will call the forward pass again internally, but this
+        # time it will get the raw distribution parameters it needs.
         predictions = model.sample(data, self.cfg.n_samples)
+        
+        # Clean up the flag
+        del model.is_sampling
+        
+        # For this specific tester, we need to put the model back in eval mode
         model.eval()
+
         return predictions, {k: v.item() for k, v in all_losses.items()}
 
     def _subset_targets(self,
@@ -579,6 +600,7 @@ class UncertaintyTester(BaseTester):
         return y_hat_sub, y_sub
 
     def _create_xarray_data_vars(self, y_hat: np.ndarray, y: np.ndarray):
+        print("DEBUG: Creating data variables using UNCERTAINTY logic.")
         data = {}
         for i, var in enumerate(self.cfg.target_variables):
             data[f"{var}_obs"] = (('date', 'time_step'), y[:, :, i])

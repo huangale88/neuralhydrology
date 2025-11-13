@@ -138,63 +138,106 @@ class TiedFrequencyMSERegularizationCMAL(BaseRegularization):
 
         if len(self._frequencies) < 2:
             raise ValueError("TiedFrequencyMSERegularization needs at least two frequencies.")
+        
+    def _calculate_cmal_mean(self, mu: torch.Tensor, b: torch.Tensor, tau: torch.Tensor, pi: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
+        """Calculates the mean of the CMAL mixture distribution."""
+        tau_safe = torch.clamp(tau, eps, 1.0 - eps)
+        component_means = mu + b * (1.0 - 2.0 * tau_safe) / (tau_safe * (1.0 - tau_safe))
+        pi_safe = pi / (pi.sum(dim=-1, keepdim=True) + eps)
+        mean_mixture = torch.sum(pi_safe * component_means, dim=-1, keepdim=True)
+        return mean_mixture
 
     def forward(self, prediction: Dict[str, torch.Tensor], ground_truth: Dict[str, torch.Tensor],
                 *args) -> torch.Tensor:
         """Calculate the sum of mean squared deviations between adjacent predicted frequencies.
 
+        This version is adapted for CMAL heads. It checks if a point-prediction 'y_hat'
+        exists. If not (e.g., during evaluation), it calculates the mean of the CMAL
+        distribution from its raw parameters before comparing frequencies.
+
         Parameters
         ----------
         prediction : Dict[str, torch.Tensor]
-            Dictionary containing ``y_hat_{frequency}`` for each frequency.
+            Dictionary containing model predictions. During training, this will contain
+            y_hat_[freq]. During evaluation, it will contain mu_[freq], b_[freq], etc.
         ground_truth : Dict[str, torch.Tensor]
-            Dictionary continaing ``y_{frequency}`` for each frequency.
+            Dictionary containing ground truth values. Not used in this regularization.
+        *args :
+            Additional arguments. Expects the full, un-sliced model output dictionary
+            as the first element.
 
         Returns
         -------
         torch.Tensor
             The sum of mean squared deviations for each pair of adjacent frequencies.
         """
-
-        loss = 0
-        
-        # Access the full model outputs from args[0]
-        # This dictionary contains y_hat_1D, y_hat_1h for the *entire sequence*
-        if args:
-            full_model_outputs = args[0]
-        else:
-            # Fallback or raise an error if full_model_outputs is expected but not provided
-            # This might happen if BaseLoss doesn't pass it or if the setup is incorrect.
-            # In a typical NeuralHydrology setup, args[0] should be present.
+        if not args:
             raise RuntimeError("Full model outputs not found in *args. TiedFrequencyMSERegularization requires it.")
+        
+        full_model_outputs = args[0]
+        total_loss = 0.0
 
-
+        # Frequencies are sorted from coarse to fine (e.g., 4W-MON, 2W-MON)
         for idx, freq in enumerate(self._frequencies):
-            if idx == 0:
-                continue
-            
-            frequency_factor = int(get_frequency_factor(self._frequencies[idx - 1], freq))
-            
-            # Use full_model_outputs for the high-frequency prediction
-            high_res_y_hat = full_model_outputs[f'y_hat_{freq}']
-            
-            # Aggregate the high-resolution prediction to the lower frequency
-            # Ensure the reshaping logic aligns with your data dimensions (batch, sequence_length, features)
-            mean_high_res_y_hat = high_res_y_hat.view(high_res_y_hat.shape[0], 
-                                                        high_res_y_hat.shape[1] // frequency_factor,
-                                                        frequency_factor, -1).mean(dim=2)
-            
-            # Use full_model_outputs for the lower-frequency prediction
-            low_res_y_hat = full_model_outputs[f'y_hat_{self._frequencies[idx - 1]}']
-            
-            # Take the last relevant timesteps for comparison
-            # Ensure slicing is correct based on the aggregated shape
-            lower_freq_pred_cropped = low_res_y_hat[:, -mean_high_res_y_hat.shape[1]:]
-            
-            # Calculate the mean squared error
-            loss = loss + torch.mean((lower_freq_pred_cropped - mean_high_res_y_hat)**2)
+            # We start from the second frequency to compare it with the previous (coarser) one.
+            if idx > 0:
+                coarse_freq = self._frequencies[idx - 1]
+                fine_freq = freq
+                
+                coarse_y_hat_key = f'y_hat_{coarse_freq}'
+                fine_y_hat_key = f'y_hat_{fine_freq}'
 
-        return loss
+                # --- THIS IS THE CRITICAL LOGIC ---
+
+                # 1. Get the coarse-resolution y_hat (point prediction)
+                if coarse_y_hat_key in full_model_outputs:
+                    coarse_y_hat = full_model_outputs[coarse_y_hat_key]
+                else: # If it doesn't exist, we are in eval mode. Calculate it from CMAL params.
+                    coarse_y_hat = self._calculate_cmal_mean(
+                        full_model_outputs[f'mu_{coarse_freq}'],
+                        full_model_outputs[f'b_{coarse_freq}'],
+                        full_model_outputs[f'tau_{coarse_freq}'],
+                        full_model_outputs[f'pi_{coarse_freq}']
+                    )
+
+                # 2. Get the fine-resolution y_hat (point prediction)
+                if fine_y_hat_key in full_model_outputs:
+                    fine_y_hat = full_model_outputs[fine_y_hat_key]
+                else: # If it doesn't exist, calculate it from CMAL params.
+                    fine_y_hat = self._calculate_cmal_mean(
+                        full_model_outputs[f'mu_{fine_freq}'],
+                        full_model_outputs[f'b_{fine_freq}'],
+                        full_model_outputs[f'tau_{fine_freq}'],
+                        full_model_outputs[f'pi_{fine_freq}']
+                    )
+                
+                # 3. Aggregate the fine-resolution prediction to the coarse resolution
+                frequency_factor = int(get_frequency_factor(coarse_freq, fine_freq))
+                
+                # Reshape and take the mean to aggregate
+                aggregated_fine_y_hat = fine_y_hat.view(
+                    fine_y_hat.shape[0], # batch size
+                    fine_y_hat.shape[1] // frequency_factor, # new sequence length
+                    frequency_factor, # number of fine steps per coarse step
+                    -1 # feature dimension
+                ).mean(dim=2)
+                
+                # 4. Calculate the MSE loss between the two
+                # We need to make sure they have the same sequence length for comparison
+                if coarse_y_hat.shape[1] != aggregated_fine_y_hat.shape[1]:
+                    # This can happen due to slicing. We compare the overlapping part at the end.
+                    num_timesteps = min(coarse_y_hat.shape[1], aggregated_fine_y_hat.shape[1])
+                    coarse_y_hat_cropped = coarse_y_hat[:, -num_timesteps:]
+                    aggregated_fine_y_hat_cropped = aggregated_fine_y_hat[:, -num_timesteps:]
+                else:
+                    coarse_y_hat_cropped = coarse_y_hat
+                    aggregated_fine_y_hat_cropped = aggregated_fine_y_hat
+                
+                # Using a built-in MSE loss function is cleaner
+                loss_func = torch.nn.MSELoss()
+                total_loss += loss_func(aggregated_fine_y_hat_cropped, coarse_y_hat_cropped)
+
+        return total_loss
 
 class ForecastOverlapMSERegularization(BaseRegularization):
     """Squared error regularization for penalizing differences between hindcast and forecast models.

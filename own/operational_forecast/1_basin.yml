@@ -5,8 +5,8 @@ experiment_name: test_run
 
 # input and output frequencies
 use_frequencies:
-  - 1h
-  - 1D
+  - 2W-MON
+  - 4W-MON
 
 # files to specify training, validation and test basins (relative to code root or absolute path)
 train_basin_file: 1_basin.txt
@@ -14,12 +14,12 @@ validation_basin_file: 1_basin.txt
 test_basin_file: 1_basin.txt
 
 # training, validation and test time periods (format = 'dd/mm/yyyy')
-train_start_date: "01/10/1999"
-train_end_date: "30/09/2008"
-validation_start_date: "01/10/1996"
-validation_end_date: "30/09/1999"
-test_start_date: "01/10/1989"
-test_end_date: "30/09/1996"
+train_start_date: "27/09/1999"
+train_end_date: "31/08/2008"
+validation_start_date: "30/09/1996"
+validation_end_date: "12/09/1999"
+test_start_date: "02/10/1989"
+test_end_date: "22/09/1996"
 
 # which GPU (id) to use [in format of cuda:0, cuda:1 etc, or cpu, mps or None]
 device: cuda:0
@@ -107,17 +107,17 @@ clip_gradient_norm: 1
 # Defines which time steps are used to calculate the loss. Can't be larger than seq_length.
 # If use_frequencies is used, this needs to be a dict mapping each frequency to a predict_last_n-value, else an int.
 predict_last_n:
-  1D: 1
-  1h: 24
+  4W-MON: 1
+  2W-MON: 1
 
 # Length of the input sequence
 # If use_frequencies is used, this needs to be a dict mapping each frequency to a seq_length, else an int.
 seq_length:
-  1D: 365
-  1h: 336
+  4W-MON: 14
+  2W-MON: 26
 
 # Number of parallel workers used in the data pipeline
-num_workers: 8
+num_workers: 4
 
 # Log the training loss every n steps
 log_interval: 5
@@ -137,49 +137,34 @@ save_validation_results: True
 # --- Data configurations --------------------------------------------------------------------------
 
 # which data set to use [camels_us, camels_gb, global, hourly_camels_us]
-dataset: hourly_camels_us
+dataset: camels_preprocessed
 
 # Path to data set root
 data_dir: ../../data/CAMELS_US/
 
-# Forcing product [daymet, maurer, maurer_extended, nldas, nldas_extended, nldas_hourly]
-# can be either a list of forcings or a single forcing product
-forcings:
-  - nldas_hourly
-  - daymet
-
 dynamic_inputs:
-  1D:
-    - prcp(mm/day)_daymet
-    - srad(W/m2)_daymet
-    - tmax(C)_daymet
-    - tmin(C)_daymet
-    - vp(Pa)_daymet
-  1h:
-    - convective_fraction_nldas_hourly
-    - longwave_radiation_nldas_hourly
-    - potential_energy_nldas_hourly
-    - potential_evaporation_nldas_hourly
-    - pressure_nldas_hourly
-    - shortwave_radiation_nldas_hourly
-    - specific_humidity_nldas_hourly
-    - temperature_nldas_hourly
-    - total_precipitation_nldas_hourly
-    - wind_u_nldas_hourly
-    - wind_v_nldas_hourly
-    - prcp(mm/day)_daymet
-    - srad(W/m2)_daymet
-    - tmax(C)_daymet
-    - tmin(C)_daymet
-    - vp(Pa)_daymet
+  4W-MON:
+    - prcp(mm/day)_4W
+    - srad(W/m2)_4W
+    - tmax(C)_4W
+    - tmin(C)_4W
+    - vp(Pa)_4W
+  2W-MON:
+    - prcp(mm/day)_2W
+    - srad(W/m2)_2W
+    - tmax(C)_2W
+    - tmin(C)_2W
+    - vp(Pa)_2W
 
 # which columns to use as target
 target_variables:
-  - QObs(mm/h)
+  - QObs(mm/day)_4W
+  - QObs(mm/day)_2W
 
 # clip negative predictions to zero for all variables listed below. Should be a list, even for single variables.
 clip_targets_to_zero:
-  - QObs(mm/h)
+  - QObs(mm/day)_4W
+  - QObs(mm/day)_2W
 
 static_attributes:
   - elev_mean

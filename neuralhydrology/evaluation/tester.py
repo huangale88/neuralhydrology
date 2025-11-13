@@ -272,8 +272,8 @@ class BaseTester(object):
                 coords = {
                     'date':
                         dates[lowest_freq][:, -1],
-                    'time_step': ((dates[freq][0, :] - dates[freq][0, -1]) / pd.Timedelta(freq)).astype(np.int64) +
-                                 frequency_factor - 1
+                    'time_step': ((dates[freq][0, :] - dates[freq][0, -1]) / pd.Timedelta(freq.split('-')[0])).astype(np.int64) +
+                                frequency_factor - 1
                 }
                 xr = xarray.Dataset(data_vars=data_vars, coords=coords)
                 xr = xr.reindex({

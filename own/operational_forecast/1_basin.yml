@@ -5,8 +5,8 @@ experiment_name: test_run
 
 # input and output frequencies
 use_frequencies:
-  - 2W-MON
-  - 4W-MON
+  - 14D
+  - 1D
 
 # files to specify training, validation and test basins (relative to code root or absolute path)
 train_basin_file: 1_basin.txt
@@ -17,9 +17,9 @@ test_basin_file: 1_basin.txt
 train_start_date: "27/09/1999"
 train_end_date: "31/08/2008"
 validation_start_date: "30/09/1996"
-validation_end_date: "12/09/1999"
+validation_end_date: "26/09/1999"
 test_start_date: "02/10/1989"
-test_end_date: "08/09/1996"
+test_end_date: "22/09/1996"
 
 # which GPU (id) to use [in format of cuda:0, cuda:1 etc, or cpu, mps or None]
 device: cuda:0
@@ -107,14 +107,14 @@ clip_gradient_norm: 1
 # Defines which time steps are used to calculate the loss. Can't be larger than seq_length.
 # If use_frequencies is used, this needs to be a dict mapping each frequency to a predict_last_n-value, else an int.
 predict_last_n:
-  4W-MON: 1
-  2W-MON: 1
+  14D: 1
+  1D: 1
 
 # Length of the input sequence
 # If use_frequencies is used, this needs to be a dict mapping each frequency to a seq_length, else an int.
 seq_length:
-  4W-MON: 14
-  2W-MON: 26
+  14D: 27
+  1D: 364
 
 # Number of parallel workers used in the data pipeline
 num_workers: 4
@@ -143,23 +143,23 @@ dataset: camels_preprocessed
 data_dir: ../../data/CAMELS_US/
 
 dynamic_inputs:
-  4W-MON:
-    - prcp(mm/day)_4W
-    - srad(W/m2)_4W
-    - tmax(C)_4W
-    - tmin(C)_4W
-    - vp(Pa)_4W
-  2W-MON:
+  14D:
     - prcp(mm/day)_2W
     - srad(W/m2)_2W
     - tmax(C)_2W
     - tmin(C)_2W
     - vp(Pa)_2W
+  1D:
+    - prcp(mm/day)  
+    - srad(W/m2)    
+    - tmax(C)       
+    - tmin(C)      
+    - vp(Pa)    
 
 # which columns to use as target
 target_variables:
-  - QObs(mm/day)_4W
   - QObs(mm/day)_2W
+  - QObs(mm/day) 
 
 # clip negative predictions to zero for all variables listed below. Should be a list, even for single variables.
 clip_targets_to_zero:

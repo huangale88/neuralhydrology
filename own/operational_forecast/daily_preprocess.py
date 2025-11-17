@@ -75,10 +75,10 @@ def preprocess_camels_daymet_data():
                 if var in df.columns:
                     # Create the '4W' (four-weekly) blocky feature
                     # ADDED: label='right' and closed='right' for explicit, consistent alignment
-                    df[f'{var}_4W'] = df[var].resample('4W', label='right', closed='right').transform(method)
+                    df[f'{var}_4W'] = df[var].resample('28D').transform(method) 
                     
                     # Create the '2W' (bi-weekly) blocky feature
-                    df[f'{var}_2W'] = df[var].resample('2W', label='right', closed='right').transform(method)
+                    df[f'{var}_2W'] = df[var].resample('14D').transform(method)
                 else:
                     print(f"\nWarning: Column '{var}' not found in {file_path.name}")
 

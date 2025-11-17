@@ -21,3 +21,5 @@ finetune_modules:
 - heads
 - lstm
 base_run_dir: d:\github\neuralhydrology\neuralhydrology\own\operational_forecast\runs\test_run_1311_060515
+base_run_dir: d:\github\neuralhydrology\neuralhydrology\own\operational_forecast\runs\test_run_1311_060515
+base_run_dir: d:\github\neuralhydrology\neuralhydrology\own\operational_forecast\runs\test_run_1311_060515

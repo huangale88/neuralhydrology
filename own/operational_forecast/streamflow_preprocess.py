@@ -68,8 +68,8 @@ def preprocess_usgs_streamflow():
             df['QObs(mm/day)'] = df['QObs_cfs'] * 2446575.36 / area
             
             # Create the aggregated "blocky" target features
-            df['QObs(mm/day)_4W'] = df['QObs(mm/day)'].resample('4W', label='right', closed='right').transform('mean')
-            df['QObs(mm/day)_2W'] = df['QObs(mm/day)'].resample('2W', label='right', closed='right').transform('mean')
+            df['QObs(mm/day)_4W'] = df['QObs(mm/day)'].resample('28D').transform('mean')
+            df['QObs(mm/day)_2W'] = df['QObs(mm/day)'].resample('14D').transform('mean')
             
             df_to_save = df[['QObs(mm/day)', 'QObs(mm/day)_4W', 'QObs(mm/day)_2W']]
             

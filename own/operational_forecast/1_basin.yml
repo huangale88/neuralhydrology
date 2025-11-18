@@ -69,7 +69,7 @@ output_activation: linear
 # ----> General settings <----
 
 # Number of cell states of the LSTM
-hidden_size: 20
+hidden_size: 256
 
 # Initial bias value of the forget gate
 initial_forget_bias: 3

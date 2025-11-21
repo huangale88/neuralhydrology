@@ -1,5 +1,6 @@
 import pandas as pd
 from pathlib import Path
+import numpy as np
 
 # Important: We need to import the BaseDataset we are inheriting from
 from neuralhydrology.datasetzoo.basedataset import BaseDataset
@@ -28,40 +29,51 @@ class CamelsDaymetPreprocessed(BaseDataset):
 
     def _load_basin_data(self, basin: str) -> pd.DataFrame:
         """
-        Loads the pre-processed climate and streamflow data for a single basin and 
-        merges them into a single DataFrame.
+        Loads data for a single basin, switching between historical and operational sources.
         """
-        # Define the paths to our specific pre-processed data folders
-        # self.cfg.data_dir is the root CAMELS US path from the config file
-        climate_dir = self.cfg.data_dir / "basin_mean_forcing" / "daymet_preprocessed"
-        streamflow_dir = self.cfg.data_dir / "usgs_streamflow_preprocessed"
+        # Use getattr to safely check for the 'run_mode' flag.
+        # If the flag is not set, it defaults to 'historical'.
+        run_mode = getattr(self.cfg, 'run_mode', 'historical')
 
-        # --- Load Climate Data ---
-        # Find the correct climate file for the given basin ID
-        climate_files = list(climate_dir.glob(f"**/{basin}_*.csv"))
-        if not climate_files:
-            raise FileNotFoundError(f"No pre-processed climate file found for basin {basin} in {climate_dir}")
-        
-        # Load the data, making sure the 'date' column is the index
-        df_climate = pd.read_csv(climate_files[0], index_col='date', parse_dates=True)
+        if run_mode == 'operational':
+            # --- OPERATIONAL FORECAST MODE ---
+            # This block is now triggered ONLY when you explicitly set the flag.
+            
+            # Use the correct path to your forecast files.
+            forecast_dir = Path(r"D:\github\neuralhydrology\neuralhydrology\data\forecast\forecasts_processed")
+            forecast_file = forecast_dir / f"{basin}_operational_forecast.csv"
+            
+            print(f"\n[CONFIRMATION] EXPLICIT OPERATIONAL MODE. Loading forecast data from: {forecast_file}\n")
+            
+            if not forecast_file.is_file():
+                raise FileNotFoundError(
+                    f"Operational forecast file not found: {forecast_file}\n"
+                    f"Please ensure your formatted forecast CSV is in this location."
+                )
+            
+            df_merged = pd.read_csv(forecast_file, index_col='date', parse_dates=True)
+            
+            # Add empty placeholder columns for the target variables.
+            for target in self.cfg.target_variables:
+                if target not in df_merged.columns:
+                    df_merged[target] = np.nan 
 
-        # --- Load Streamflow Data ---
-        # Find the correct streamflow file for the given basin ID
-        streamflow_files = list(streamflow_dir.glob(f"**/{basin}_*.csv"))
-        if not streamflow_files:
-            raise FileNotFoundError(f"No pre-processed streamflow file found for basin {basin} in {streamflow_dir}")
-        
-        # Load the data
-        df_streamflow = pd.read_csv(streamflow_files[0], index_col='date', parse_dates=True)
+        else:
+            # --- HISTORICAL MODE (for train, validation, AND test) ---
+            # This block is now the default for all standard runs.
+            print(f"\n[CONFIRMATION] HISTORICAL MODE. Loading data for period '{self.period}' for basin {basin}...\n")
+            
+            climate_dir = self.cfg.data_dir / "basin_mean_forcing" / "daymet_preprocessed"
+            streamflow_dir = self.cfg.data_dir / "usgs_streamflow_preprocessed"
 
-        # --- Merge DataFrames ---
-        # Join the two dataframes on their shared date index.
-        # This creates one wide DataFrame with all columns (climate and flow).
-        df_merged = df_climate.join(df_streamflow)
+            climate_files = list(climate_dir.glob(f"**/{basin}_*.csv"))
+            df_climate = pd.read_csv(climate_files[0], index_col='date', parse_dates=True)
+
+            streamflow_files = list(streamflow_dir.glob(f"**/{basin}_*.csv"))
+            df_streamflow = pd.read_csv(streamflow_files[0], index_col='date', parse_dates=True)
+            
+            df_merged = df_climate.join(df_streamflow)
         
-        # This merged, daily-indexed DataFrame is the "source of truth" that the
-        # parent BaseDataset class expects. It will handle resampling this DataFrame
-        # to '2W' and '4W' internally.
         return df_merged
 
     def _load_attributes(self) -> pd.DataFrame:

@@ -1,67 +1,65 @@
 import pandas as pd
 from pathlib import Path
 import numpy as np
-
-# Important: We need to import the BaseDataset we are inheriting from
 from neuralhydrology.datasetzoo.basedataset import BaseDataset
-
-# We will also reuse the original CAMELS attribute loader to avoid rewriting code
 from neuralhydrology.datasetzoo import camelsus 
 from neuralhydrology.utils.config import Config
 
-
 class CamelsDaymetPreprocessed(BaseDataset):
-    """Dataset class for pre-processed daily CAMELS US data.
-
-    This class is designed to load the daily climate and streamflow data that has been
-    pre-processed to include aggregated 'blocky' features for bi-weekly ('2W') and 
-    four-weekly ('4W') timescales.
+    """
+    Dataset class with a flexible 'run_mode' to switch between data sources.
     
-    It expects the `data_dir` in the config file to point to the root of the CAMELS_US
-    dataset. It will then look for the pre-processed data in specific sub-folders:
-    - `data_dir/basin_mean_forcing/daymet_preprocessed/`
-    - `data_dir/usgs_streamflow_preprocessed/`
+    - 'historical' mode: Loads standard training/validation/testing data.
+    - 'operational' mode: Loads a specific forecast file. This mode is now
+      date-aware and can handle single forecasts or rolling evaluations.
     """
 
     def __init__(self, *args, **kwargs):
-        # This __init__ is simple, we just pass all arguments to the parent class
         super(CamelsDaymetPreprocessed, self).__init__(*args, **kwargs)
 
     def _load_basin_data(self, basin: str) -> pd.DataFrame:
         """
         Loads data for a single basin, switching between historical and operational sources.
         """
-        # Use getattr to safely check for the 'run_mode' flag.
-        # If the flag is not set, it defaults to 'historical'.
         run_mode = getattr(self.cfg, 'run_mode', 'historical')
 
         if run_mode == 'operational':
-            # --- OPERATIONAL FORECAST MODE ---
-            # This block is now triggered ONLY when you explicitly set the flag.
+            # --- OPERATIONAL FORECAST MODE (NOW DATE-AWARE) ---
             
-            # Use the correct path to your forecast files.
-            forecast_dir = Path(r"D:\github\neuralhydrology\neuralhydrology\data\forecast\forecasts_processed")
+            # Use getattr to safely get the path to the root forecast directory.
+            # This makes the loader more flexible.
+            forecast_root_dir = getattr(self.cfg, 'forecast_dir', None)
+            if forecast_root_dir is None:
+                raise ValueError("For 'operational' run_mode, you must specify 'forecast_dir' in the config.")
+            
+            # ##############################################################
+            # ################      THIS IS THE KEY CHANGE      ################
+            # ##############################################################
+            # The BaseDataset makes the start date of the current period available.
+            # For an operational run, this corresponds to the start of the forecast.
+            start_date_str = self.start_and_end_dates[basin]['start_dates'][0].strftime('%Y-%m-%d')
+            
+            # Construct the path to the specific, date-stamped forecast folder.
+            forecast_dir = Path(forecast_root_dir) / start_date_str
+            # ##############################################################
+
             forecast_file = forecast_dir / f"{basin}_operational_forecast.csv"
             
-            print(f"\n[CONFIRMATION] EXPLICIT OPERATIONAL MODE. Loading forecast data from: {forecast_file}\n")
+            print(f"\n[CONFIRMATION] OPERATIONAL MODE: Loading forecast data from: {forecast_file}\n")
             
             if not forecast_file.is_file():
-                raise FileNotFoundError(
-                    f"Operational forecast file not found: {forecast_file}\n"
-                    f"Please ensure your formatted forecast CSV is in this location."
-                )
+                raise FileNotFoundError(f"Operational forecast file not found: {forecast_file}")
             
             df_merged = pd.read_csv(forecast_file, index_col='date', parse_dates=True)
             
-            # Add empty placeholder columns for the target variables.
+            # Add placeholder columns for the target variables.
             for target in self.cfg.target_variables:
                 if target not in df_merged.columns:
-                    df_merged[target] = np.nan 
+                    df_merged[target] = np.nan
 
         else:
-            # --- HISTORICAL MODE (for train, validation, AND test) ---
-            # This block is now the default for all standard runs.
-            print(f"\n[CONFIRMATION] HISTORICAL MODE. Loading data for period '{self.period}' for basin {basin}...\n")
+            # --- HISTORICAL MODE (Unchanged) ---
+            print(f"\n[CONFIRMATION] HISTORICAL MODE: Loading data for period '{self.period}' for basin {basin}...\n")
             
             climate_dir = self.cfg.data_dir / "basin_mean_forcing" / "daymet_preprocessed"
             streamflow_dir = self.cfg.data_dir / "usgs_streamflow_preprocessed"
@@ -77,10 +75,4 @@ class CamelsDaymetPreprocessed(BaseDataset):
         return df_merged
 
     def _load_attributes(self) -> pd.DataFrame:
-        """
-        Loads the static catchment attributes from the original CAMELS dataset.
-        
-        We can reuse the existing function from the `camelsus` module for this.
-        """
-        # This function needs the root CAMELS US directory to find the attributes folder.
         return camelsus.load_camels_us_attributes(self.cfg.data_dir, basins=self.basins)

@@ -57,7 +57,7 @@ transfer_mtslstm_states:
 head: cmal
 
 # CMAL specific parameters
-n_distributions: 5 # The number of asymmetric Laplace distributions to mix [cite: 53]
+n_distributions: 3 # The number of asymmetric Laplace distributions to mix [cite: 53]
 n_samples: 100 # Number of samples generated from CMAL per time-step during inference [cite: 53]
 negative_sample_handling: clip # Approach for handling negative samples [cite: 54]
 # negative_sample_max_retries: 5 # Only relevant if negative_sample_handling is 'truncate' [cite: 56]

@@ -117,7 +117,7 @@ seq_length:
   1D: 14
 
 # Number of parallel workers used in the data pipeline
-num_workers: 4
+num_workers: 16
 
 # Log the training loss every n steps
 log_interval: 5

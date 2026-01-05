@@ -14,12 +14,12 @@ validation_basin_file: 1_basin.txt
 test_basin_file: 1_basin.txt
 
 # training, validation and test time periods (format = 'dd/mm/yyyy')
-train_start_date: "27/09/1999"
-train_end_date: "12/10/2008"
-validation_start_date: "30/09/1996"
-validation_end_date: "26/09/1999"
-test_start_date: "02/10/1989"
-test_end_date: "22/09/1996"
+train_start_date: "01/10/1982"
+train_end_date:   "29/09/2005"
+validation_start_date: "30/09/2005"
+validation_end_date:   "01/01/2009"
+test_start_date: "01/10/2005"
+test_end_date:   "31/12/2008"
 
 # which GPU (id) to use [in format of cuda:0, cuda:1 etc, or cpu, mps or None]
 device: cuda:0
@@ -57,10 +57,10 @@ transfer_mtslstm_states:
 head: cmal
 
 # CMAL specific parameters
-n_distributions: 3 # The number of asymmetric Laplace distributions to mix [cite: 53]
-n_samples: 100 # Number of samples generated from CMAL per time-step during inference [cite: 53]
-negative_sample_handling: clip # Approach for handling negative samples [cite: 54]
-# negative_sample_max_retries: 5 # Only relevant if negative_sample_handling is 'truncate' [cite: 56]
+n_distributions: 5 # The number of asymmetric Laplace distributions to mix
+n_samples: 100 # Number of samples generated from CMAL per time-step during inference 
+negative_sample_handling: clip # Approach for handling negative samples 
+# negative_sample_max_retries: 5 # Only relevant if negative_sample_handling is 'truncate' 
 mc_dropout: False
 
 # ----> Regression settings <----
@@ -99,7 +99,7 @@ learning_rate:
 batch_size: 256
 
 # Number of training epochs
-epochs: 20
+epochs: 30
 
 # If a value, clips the gradients during training to that norm.
 clip_gradient_norm: 1
@@ -113,7 +113,7 @@ predict_last_n:
 # Length of the input sequence
 # If use_frequencies is used, this needs to be a dict mapping each frequency to a seq_length, else an int.
 seq_length:
-  14D: 26
+  14D: 52
   1D: 14
 
 # Number of parallel workers used in the data pipeline
